@@ -2,6 +2,8 @@ package com.github.rod.iframe.toolwindow;
 
 import com.github.rod.iframe.settings.BrowserSettings;
 import com.intellij.openapi.Disposable;
+import com.intellij.ide.BrowserUtil;
+import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ShowSettingsUtil;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
@@ -15,11 +17,17 @@ import com.intellij.ui.jcef.JBCefBrowser;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import org.jetbrains.annotations.NotNull;
+import org.cef.browser.CefBrowser;
+import org.cef.browser.CefFrame;
+import org.cef.callback.CefMenuModel;
+import org.cef.handler.CefContextMenuHandlerAdapter;
+import org.cef.callback.CefContextMenuParams;
 
 import javax.swing.JButton;
 import javax.swing.JTabbedPane;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
+import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,6 +68,12 @@ public final class BrowserToolWindowFactory implements ToolWindowFactory, DumbAw
     }
 
     private static final class BrowserPanel extends JPanel implements Disposable {
+        private static final int BACK_COMMAND = CefMenuModel.MenuId.MENU_ID_USER_FIRST;
+        private static final int FORWARD_COMMAND = BACK_COMMAND + 1;
+        private static final int RELOAD_COMMAND = BACK_COMMAND + 2;
+        private static final int COPY_URL_COMMAND = BACK_COMMAND + 3;
+        private static final int OPEN_EXTERNAL_COMMAND = BACK_COMMAND + 4;
+
         private final JTabbedPane tabs = new JTabbedPane();
         private final List<JBCefBrowser> browsers = new ArrayList<>();
 
@@ -75,10 +89,49 @@ public final class BrowserToolWindowFactory implements ToolWindowFactory, DumbAw
             tabs.removeAll();
             for (BrowserSettings.Page page : BrowserSettings.getInstance().getPages()) {
                 JBCefBrowser browser = new JBCefBrowser(page.url);
+                installContextMenu(browser);
                 browsers.add(browser);
                 tabs.addTab(page.name, browser.getComponent());
                 tabs.setToolTipTextAt(tabs.getTabCount() - 1, page.url);
             }
+        }
+
+        private static void installContextMenu(JBCefBrowser browser) {
+            browser.getJBCefClient().addContextMenuHandler(new CefContextMenuHandlerAdapter() {
+                @Override
+                public void onBeforeContextMenu(CefBrowser cefBrowser, CefFrame frame,
+                                                CefContextMenuParams params, CefMenuModel model) {
+                    if (model.getCount() > 0) {
+                        model.addSeparator();
+                    }
+                    model.addItem(BACK_COMMAND, "Back");
+                    model.setEnabled(BACK_COMMAND, cefBrowser.canGoBack());
+                    model.addItem(FORWARD_COMMAND, "Forward");
+                    model.setEnabled(FORWARD_COMMAND, cefBrowser.canGoForward());
+                    model.addItem(RELOAD_COMMAND, "Reload");
+                    model.addSeparator();
+                    model.addItem(COPY_URL_COMMAND, "Copy Current URL");
+                    model.addItem(OPEN_EXTERNAL_COMMAND, "Open in External Browser");
+                }
+
+                @Override
+                public boolean onContextMenuCommand(CefBrowser cefBrowser, CefFrame frame,
+                                                    CefContextMenuParams params, int commandId,
+                                                    int eventFlags) {
+                    switch (commandId) {
+                        case BACK_COMMAND -> cefBrowser.goBack();
+                        case FORWARD_COMMAND -> cefBrowser.goForward();
+                        case RELOAD_COMMAND -> cefBrowser.reload();
+                        case COPY_URL_COMMAND -> CopyPasteManager.getInstance()
+                                .setContents(new StringSelection(cefBrowser.getURL()));
+                        case OPEN_EXTERNAL_COMMAND -> BrowserUtil.browse(cefBrowser.getURL());
+                        default -> {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }, browser.getCefBrowser());
         }
 
         private void disposeBrowsers() {
