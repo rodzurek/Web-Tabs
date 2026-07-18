@@ -1,0 +1,26 @@
+<idea-plugin>
+    <id>com.github.rod.web-tabs</id>
+    <name>Web Tabs</name>
+    <vendor>Rod</vendor>
+
+    <description><![CDATA[
+        Display a configurable web page inside an IntelliJ IDEA tool window using JCEF.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.jcef</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.github.rod.iframe.settings.BrowserSettings"/>
+        <applicationConfigurable
+                parentId="tools"
+                id="com.github.rod.iframe.settings"
+                displayName="Web Tabs"
+                instance="com.github.rod.iframe.settings.BrowserConfigurable"/>
+        <toolWindow
+                id="Web Tabs"
+                anchor="right"
+                icon="/icons/browser.svg"
+                factoryClass="com.github.rod.iframe.toolwindow.BrowserToolWindowFactory"/>
+    </extensions>
+</idea-plugin>
