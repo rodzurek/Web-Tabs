@@ -116,12 +116,21 @@ public final class BrowserConfigurable implements Configurable {
     }
 
     private List<BrowserSettings.Page> readPages() {
-        stopEditing();
         List<BrowserSettings.Page> pages = new ArrayList<>();
         for (int row = 0; row < model.getRowCount(); row++) {
+            Object name = model.getValueAt(row, 0);
+            Object url = model.getValueAt(row, 1);
+            if (table != null && table.isEditing() && table.getEditingRow() == row) {
+                Object editorValue = table.getCellEditor().getCellEditorValue();
+                if (table.getEditingColumn() == 0) {
+                    name = editorValue;
+                } else if (table.getEditingColumn() == 1) {
+                    url = editorValue;
+                }
+            }
             pages.add(new BrowserSettings.Page(
-                    String.valueOf(model.getValueAt(row, 0)).trim(),
-                    String.valueOf(model.getValueAt(row, 1)).trim()
+                    String.valueOf(name).trim(),
+                    String.valueOf(url).trim()
             ));
         }
         return pages;
